@@ -46,7 +46,7 @@ const moodThemes: Record<Mood, { label: string; image: string; colors: { primary
   },
   chill: {
     label: 'Chill',
-    image: 'https://images.unsplash.com/photo-1514961682292-862532322dd0?w=1200&q=80',
+    image: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1200&q=80',
     colors: { primary: 'from-indigo-500', secondary: 'to-purple-400' },
   },
   focused: {
@@ -70,6 +70,7 @@ export default function SearchClient() {
   const [activeTab, setActiveTab] = useState<'search' | 'favorites' | 'playlists' | 'recommendations'>('search');
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number>(-1);
   const [volume, setVolume] = useState(70);
   const [isDarkTheme, setIsDarkTheme] = useState(true);
   const [selectedMood, setSelectedMood] = useState<Mood>('peaceful');
@@ -251,6 +252,29 @@ export default function SearchClient() {
     setFavorites(shuffled);
   };
 
+  const playNext = () => {
+    if (results.length === 0) return;
+    const nextIndex = (currentPlayingIndex + 1) % results.length;
+    const nextVideo = results[nextIndex];
+    const videoId = typeof nextVideo.id === 'string' ? nextVideo.id : nextVideo.id.videoId;
+    setCurrentPlayingIndex(nextIndex);
+    setPlayingVideoId(videoId);
+  };
+
+  const playPrevious = () => {
+    if (results.length === 0) return;
+    const prevIndex = currentPlayingIndex <= 0 ? results.length - 1 : currentPlayingIndex - 1;
+    const prevVideo = results[prevIndex];
+    const videoId = typeof prevVideo.id === 'string' ? prevVideo.id : prevVideo.id.videoId;
+    setCurrentPlayingIndex(prevIndex);
+    setPlayingVideoId(videoId);
+  };
+
+  const playVideo = (videoId: string, index: number) => {
+    setCurrentPlayingIndex(index);
+    setPlayingVideoId(videoId);
+  };
+
   if (!mounted) return null;
 
   const theme = isDarkTheme ? 'dark bg-gray-900 text-white' : 'light bg-white text-gray-900';
@@ -404,7 +428,7 @@ export default function SearchClient() {
 
               {/* Results Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {results.map((video) => {
+                {results.map((video, index) => {
                   const videoId = typeof video.id === 'string' ? video.id : video.id.videoId;
                   const isFav = isFavorited(videoId);
 
@@ -419,7 +443,7 @@ export default function SearchClient() {
                         src={video.snippet.thumbnails.medium.url}
                         alt={video.snippet.title}
                         className="w-full h-40 object-cover"
-                        onClick={() => setPlayingVideoId(videoId)}
+                        onClick={() => playVideo(videoId, index)}
                       />
                       <div className="p-3">
                         <h3 className="font-bold text-sm line-clamp-2">{video.snippet.title}</h3>
@@ -668,21 +692,60 @@ export default function SearchClient() {
         {/* Player */}
         {playingVideoId && (
           <div className={`fixed bottom-0 left-0 right-0 ${isDarkTheme ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-sm border-t ${isDarkTheme ? 'border-gray-800' : 'border-gray-200'}`}>
-            <div className="max-w-6xl mx-auto p-4 flex items-center justify-between gap-4">
-              <iframe
-                width="100%"
-                height="60"
-                src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
-                frameBorder="0"
-                allow="autoplay"
-                className="rounded"
-              />
-              <button
-                onClick={() => setPlayingVideoId(null)}
-                className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 font-semibold whitespace-nowrap"
-              >
-                Close
-              </button>
+            <div className="max-w-6xl mx-auto p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={playPrevious}
+                  disabled={results.length === 0}
+                  className={`px-3 py-2 rounded font-semibold transition whitespace-nowrap ${
+                    results.length === 0
+                      ? isDarkTheme
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : isDarkTheme
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  ⏮️ Previous
+                </button>
+                <div className="flex-1">
+                  <iframe
+                    width="100%"
+                    height="60"
+                    src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
+                    frameBorder="0"
+                    allow="autoplay"
+                    className="rounded"
+                  />
+                </div>
+                <button
+                  onClick={playNext}
+                  disabled={results.length === 0}
+                  className={`px-3 py-2 rounded font-semibold transition whitespace-nowrap ${
+                    results.length === 0
+                      ? isDarkTheme
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : isDarkTheme
+                        ? 'bg-blue-600 hover:bg-blue-700'
+                        : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  Next ⏭️
+                </button>
+                <button
+                  onClick={() => setPlayingVideoId(null)}
+                  className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 font-semibold whitespace-nowrap text-white"
+                >
+                  Close
+                </button>
+              </div>
+              {results.length > 0 && (
+                <div className="text-center text-sm opacity-70">
+                  Playing {currentPlayingIndex + 1} of {results.length}
+                </div>
+              )}
             </div>
           </div>
         )}
