@@ -293,7 +293,7 @@ export default function SearchClient() {
         {/* Header */}
         <header className={`${isDarkTheme ? 'bg-gray-900/80' : 'bg-white/80'} backdrop-blur-sm border-b ${isDarkTheme ? 'border-gray-800' : 'border-gray-200'} sticky top-0 p-4`}>
           <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-            <h1 className="text-3xl font-bold">🎵 YouTube Music</h1>
+            <h1 className="text-3xl font-bold">🎵 Tangy Youtube Music</h1>
 
             <div className="flex items-center gap-2">
               <select
@@ -327,9 +327,9 @@ export default function SearchClient() {
         </header>
 
         {/* Main Content - Split Layout */}
-        <main className="flex-1 w-full p-4 flex gap-4 overflow-hidden">
-          {/* Left Side - Search and Results */}
-          <div className={`flex-1 flex flex-col space-y-4 overflow-y-auto ${isDarkTheme ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm rounded-lg p-4`}>
+        <main className="flex-1 w-full p-2 flex gap-2 overflow-hidden">
+          {/* Left Side - Search and Results (1/4 width) */}
+          <div className={`w-1/4 flex flex-col space-y-2 overflow-y-auto ${isDarkTheme ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm rounded-lg p-2`}>
             {/* Tabs */}
             <div className="flex gap-2 flex-wrap">
               {(['search', 'favorites', 'playlists', 'recommendations'] as const).map((tab) => (
@@ -353,37 +353,38 @@ export default function SearchClient() {
 
             {/* SEARCH TAB */}
             {activeTab === 'search' && (
-            <div className="space-y-4">
-              <div className="flex gap-2 flex-wrap items-center">
+            <div className="space-y-2">
+              <div className="flex gap-1 flex-col items-stretch">
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search YouTube for music..."
-                  className={`flex-1 min-w-[200px] px-4 py-2 rounded border ${
+                  placeholder="Search..."
+                  className={`px-2 py-1 text-sm rounded border ${
                     isDarkTheme
                       ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                   }`}
                 />
+                <div className="flex gap-1">
                 <button
                   onClick={handleSearch}
                   disabled={loading}
-                  className={`px-4 py-2 rounded font-semibold transition ${
+                  className={`flex-1 px-2 py-1 text-xs rounded font-semibold transition ${
                     isDarkTheme
                       ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700'
                       : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300'
                   }`}
                 >
-                  {loading ? 'Searching...' : 'Search'}
+                  {loading ? 'Search...' : 'Search'}
                 </button>
                 <button
                   onClick={() => {
                     setShuffleMode(!shuffleMode);
                     if (results.length > 0) shuffleResults();
                   }}
-                  className={`px-4 py-2 rounded font-semibold transition ${
+                  className={`flex-1 px-2 py-1 text-xs rounded font-semibold transition ${
                     shuffleMode
                       ? isDarkTheme
                         ? 'bg-green-600 hover:bg-green-700'
@@ -393,15 +394,16 @@ export default function SearchClient() {
                         : 'bg-gray-300 hover:bg-gray-400'
                   }`}
                 >
-                  🔀 Shuffle {shuffleMode ? 'ON' : 'OFF'}
+                  🔀 {shuffleMode ? 'ON' : 'OFF'}
                 </button>
+                </div>
               </div>
 
-              {/* Recent Searches */}
+              {/* Recent Searches - Hidden to save space */}
               {recentSearches.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm opacity-70">Recent Searches:</p>
-                  <div className="flex gap-2 flex-wrap">
+                <div className="space-y-1 hidden">
+                  <p className="text-xs opacity-70">Recent:</p>
+                  <div className="flex gap-1 flex-wrap">
                     {recentSearches.map((search) => (
                       <button
                         key={search}
@@ -412,7 +414,7 @@ export default function SearchClient() {
                             handleSearch();
                           }, 0);
                         }}
-                        className={`px-3 py-1 rounded text-sm transition ${
+                        className={`px-2 py-0.5 rounded text-xs transition ${
                           isDarkTheme
                             ? 'bg-gray-700 hover:bg-gray-600'
                             : 'bg-gray-300 hover:bg-gray-400'
@@ -425,10 +427,10 @@ export default function SearchClient() {
                 </div>
               )}
 
-              {error && <div className="text-red-500 font-semibold">{error}</div>}
+              {error && <div className="text-xs text-red-500 font-semibold">{error}</div>}
 
-              {/* Results Grid - Adjusted for side panel */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 auto-rows-max">
+              {/* Results Grid - Ultra compact */}
+              <div className="grid grid-cols-1 gap-2 auto-rows-max">
                 {results.map((video, index) => {
                   const videoId = typeof video.id === 'string' ? video.id : video.id.videoId;
                   const isFav = isFavorited(videoId);
@@ -436,23 +438,25 @@ export default function SearchClient() {
                   return (
                     <div
                       key={videoId}
-                      className={`rounded-lg overflow-hidden shadow-lg transition transform hover:scale-105 cursor-pointer ${
+                      className={`rounded overflow-hidden shadow transition transform hover:scale-105 cursor-pointer flex gap-2 ${
                         isDarkTheme ? 'bg-gray-800' : 'bg-gray-100'
                       }`}
                     >
                       <img
                         src={video.snippet.thumbnails.medium.url}
                         alt={video.snippet.title}
-                        className="w-full h-40 object-cover"
+                        className="w-16 h-16 object-cover flex-shrink-0"
                         onClick={() => playVideo(videoId, index)}
                       />
-                      <div className="p-3">
-                        <h3 className="font-bold text-sm line-clamp-2">{video.snippet.title}</h3>
-                        <p className="text-xs opacity-70">{video.snippet.channelTitle}</p>
-                        <div className="flex gap-2 mt-2">
+                      <div className="p-1 flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <h3 className="font-bold text-xs line-clamp-2">{video.snippet.title}</h3>
+                          <p className="text-xs opacity-70 line-clamp-1">{video.snippet.channelTitle}</p>
+                        </div>
+                        <div className="flex gap-1 mt-1">
                           <button
                             onClick={() => toggleFavorite(video)}
-                            className={`flex-1 px-2 py-1 rounded text-sm font-semibold transition ${
+                            className={`flex-1 px-1 py-0.5 rounded text-xs font-semibold transition ${
                               isFav
                                 ? isDarkTheme
                                   ? 'bg-red-600 hover:bg-red-700'
@@ -462,7 +466,7 @@ export default function SearchClient() {
                                   : 'bg-gray-300 hover:bg-gray-400'
                             }`}
                           >
-                            {isFav ? '❤️ Favorited' : '🤍 Favorite'}
+                            {isFav ? '❤️' : '🤍'}
                           </button>
                           <select
                             onChange={(e) => {
@@ -477,7 +481,7 @@ export default function SearchClient() {
                                 e.target.value = '';
                               }
                             }}
-                            className={`px-2 py-1 rounded text-sm ${
+                            className={`flex-1 px-1 py-0.5 rounded text-xs ${
                               isDarkTheme
                                 ? 'bg-gray-700 text-white'
                                 : 'bg-gray-300 text-gray-900'
@@ -690,15 +694,15 @@ export default function SearchClient() {
           )}
             </div>
             
-          {/* Right Side - Player */}
+          {/* Right Side - Player (3/4 width) - Transparent background */}
           {playingVideoId ? (
-            <div className={`flex-1 min-w-[300px] max-w-md ${isDarkTheme ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm rounded-lg p-4 flex flex-col`}>
+            <div className={`flex-1 rounded-lg p-4 flex flex-col bg-transparent`}>
               <div className="space-y-4 flex-1 flex flex-col">
-                {/* Player Iframe */}
+                {/* Player Iframe - Big */}
                 <div className="flex-1 flex flex-col">
                   <iframe
                     width="100%"
-                    height="200"
+                    height="100%"
                     src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
                     frameBorder="0"
                     allow="autoplay"
@@ -755,10 +759,10 @@ export default function SearchClient() {
               </div>
             </div>
           ) : (
-            <div className={`flex-1 min-w-[300px] max-w-md ${isDarkTheme ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm rounded-lg p-4 flex items-center justify-center`}>
+            <div className={`flex-1 ${isDarkTheme ? 'bg-gray-800/50' : 'bg-white/50'} backdrop-blur-sm rounded-lg p-4 flex items-center justify-center`}>
               <div className="text-center">
-                <p className="text-lg opacity-70">🎵</p>
-                <p className="text-sm opacity-70">Select a song to play</p>
+                <p className="text-6xl opacity-70">🎵</p>
+                <p className="text-lg opacity-70">Select a song to play</p>
               </div>
             </div>
           )}
