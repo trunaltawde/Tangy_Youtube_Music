@@ -1,568 +1,691 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 
-type Item = {
-  id: { videoId?: string } | string;
-  snippet: { title: string; thumbnails?: any; channelTitle?: string };
-};
+interface SearchResult {
+  id: string | { videoId: string };
+  snippet: {
+    title: string;
+    channelTitle: string;
+    thumbnails: { medium: { url: string } };
+  };
+}
 
-type Favorite = {
+interface Favorite {
   videoId: string;
   title: string;
   channel: string;
   thumbnail: string;
   addedAt: number;
-};
+}
 
-type Mood = "peaceful" | "energetic" | "romantic" | "chill" | "focused" | "party";
+interface Playlist {
+  id: string;
+  name: string;
+  songs: Favorite[];
+  createdAt: number;
+}
 
-const moodThemes: Record<Mood, { bg: string; bgImage: string; emoji: string; label: string }> = {
+type Mood = 'peaceful' | 'energetic' | 'romantic' | 'chill' | 'focused' | 'party';
+
+const moodThemes: Record<Mood, { label: string; image: string; colors: { primary: string; secondary: string } }> = {
   peaceful: {
-    bg: "bg-gradient-to-br from-blue-400 via-cyan-300 to-orange-300",
-    bgImage:
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
-    emoji: "🌅",
-    label: "Peaceful (Beach Sunset)",
+    label: 'Peaceful',
+    image: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1200&q=80',
+    colors: { primary: 'from-blue-400', secondary: 'to-cyan-300' },
   },
   energetic: {
-    bg: "bg-gradient-to-br from-red-500 via-yellow-400 to-orange-500",
-    bgImage:
-      "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1920&q=80",
-    emoji: "⚡",
-    label: "Energetic (Fire)",
+    label: 'Energetic',
+    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&q=80',
+    colors: { primary: 'from-red-500', secondary: 'to-orange-400' },
   },
   romantic: {
-    bg: "bg-gradient-to-br from-pink-400 via-red-300 to-purple-400",
-    bgImage:
-      "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=1920&q=80",
-    emoji: "💕",
-    label: "Romantic (Sunset Love)",
+    label: 'Romantic',
+    image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=80',
+    colors: { primary: 'from-pink-500', secondary: 'to-red-400' },
   },
   chill: {
-    bg: "bg-gradient-to-br from-indigo-500 via-purple-400 to-pink-300",
-    bgImage:
-      "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80",
-    emoji: "😌",
-    label: "Chill (Night Sky)",
+    label: 'Chill',
+    image: 'https://images.unsplash.com/photo-1514961682292-862532322dd0?w=1200&q=80',
+    colors: { primary: 'from-indigo-500', secondary: 'to-purple-400' },
   },
   focused: {
-    bg: "bg-gradient-to-br from-gray-700 via-blue-700 to-gray-800",
-    bgImage:
-      "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=1920&q=80",
-    emoji: "🎯",
-    label: "Focused (Workspace)",
+    label: 'Focused',
+    image: 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=1200&q=80',
+    colors: { primary: 'from-amber-600', secondary: 'to-orange-500' },
   },
   party: {
-    bg: "bg-gradient-to-br from-purple-600 via-pink-500 to-red-500",
-    bgImage:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1920&q=80",
-    emoji: "🎉",
-    label: "Party (Crowd)",
+    label: 'Party',
+    image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1200&q=80',
+    colors: { primary: 'from-violet-500', secondary: 'to-pink-500' },
   },
 };
 
 export default function SearchClient() {
-  const [q, setQ] = useState("");
-  const [results, setResults] = useState<Item[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [history, setHistory] = useState<string[]>([]);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [volume, setVolume] = useState(100);
-  const [activeTab, setActiveTab] = useState<"search" | "favorites" | "history">("search");
+  const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [mood, setMood] = useState<Mood>("peaceful");
+  const [activeTab, setActiveTab] = useState<'search' | 'favorites' | 'playlists' | 'recommendations'>('search');
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
+  const [volume, setVolume] = useState(70);
+  const [isDarkTheme, setIsDarkTheme] = useState(true);
+  const [selectedMood, setSelectedMood] = useState<Mood>('peaceful');
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [showPlaylistForm, setShowPlaylistForm] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
+  const [shuffleMode, setShuffleMode] = useState(false);
+  const [recommendations, setRecommendations] = useState<Favorite[]>([]);
 
   useEffect(() => {
     setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as "dark" | "light" | null;
-    const savedFavorites = localStorage.getItem("favorites");
-    const savedHistory = localStorage.getItem("history");
-    const savedSearches = localStorage.getItem("recentSearches");
-    const savedVolume = localStorage.getItem("volume");
-    const savedMood = localStorage.getItem("mood") as Mood | null;
+    const savedFavorites = localStorage.getItem('favorites');
+    const savedVolume = localStorage.getItem('volume');
+    const savedTheme = localStorage.getItem('isDarkTheme');
+    const savedMood = localStorage.getItem('selectedMood');
+    const savedRecentSearches = localStorage.getItem('recentSearches');
+    const savedPlaylists = localStorage.getItem('playlists');
 
-    if (savedTheme) setTheme(savedTheme);
     if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
-    if (savedSearches) setRecentSearches(JSON.parse(savedSearches));
-    if (savedVolume) setVolume(parseInt(savedVolume));
-    if (savedMood) setMood(savedMood);
+    if (savedVolume) setVolume(JSON.parse(savedVolume));
+    if (savedTheme !== null) setIsDarkTheme(JSON.parse(savedTheme));
+    if (savedMood) setSelectedMood(JSON.parse(savedMood));
+    if (savedRecentSearches) setRecentSearches(JSON.parse(savedRecentSearches));
+    if (savedPlaylists) setPlaylists(JSON.parse(savedPlaylists));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem("favorites", JSON.stringify(favorites));
+    localStorage.setItem('favorites', JSON.stringify(favorites));
   }, [favorites]);
 
   useEffect(() => {
-    localStorage.setItem("history", JSON.stringify(history));
-  }, [history]);
-
-  useEffect(() => {
-    localStorage.setItem("recentSearches", JSON.stringify(recentSearches));
-  }, [recentSearches]);
-
-  useEffect(() => {
-    localStorage.setItem("volume", volume.toString());
+    localStorage.setItem('volume', JSON.stringify(volume));
   }, [volume]);
 
   useEffect(() => {
-    localStorage.setItem("mood", mood);
-  }, [mood]);
+    localStorage.setItem('isDarkTheme', JSON.stringify(isDarkTheme));
+  }, [isDarkTheme]);
 
-  async function doSearch(e?: React.FormEvent) {
-    e?.preventDefault();
-    if (!q) return;
+  useEffect(() => {
+    localStorage.setItem('selectedMood', JSON.stringify(selectedMood));
+  }, [selectedMood]);
+
+  useEffect(() => {
+    localStorage.setItem('recentSearches', JSON.stringify(recentSearches));
+  }, [recentSearches]);
+
+  useEffect(() => {
+    localStorage.setItem('playlists', JSON.stringify(playlists));
+  }, [playlists]);
+
+  useEffect(() => {
+    generateRecommendations();
+  }, [favorites, selectedMood]);
+
+  const generateRecommendations = () => {
+    if (favorites.length === 0) {
+      setRecommendations([]);
+      return;
+    }
+
+    const moodKeywords: Record<Mood, string[]> = {
+      peaceful: ['lo-fi', 'ambient', 'meditation', 'sleep', 'relaxing'],
+      energetic: ['party', 'workout', 'pump up', 'dance', 'electronic'],
+      romantic: ['love songs', 'romantic', 'couples', 'ballad', 'slow'],
+      chill: ['chill', 'indie', 'alternative', 'folk', 'acoustic'],
+      focused: ['focus', 'study', 'jazz', 'classical', 'concentration'],
+      party: ['party', 'club', 'edm', 'hip hop', 'pop'],
+    };
+
+    const keywords = moodKeywords[selectedMood];
+    const shuffledFavorites = [...favorites].sort(() => Math.random() - 0.5);
+    const recommended = shuffledFavorites.slice(0, Math.min(5, favorites.length));
+
+    setRecommendations(recommended);
+  };
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+
     setLoading(true);
-    setError(null);
+    setError('');
+
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error);
-        setResults([]);
-      } else {
-        setResults(data.items || []);
-        if (!recentSearches.includes(q)) {
-          setRecentSearches([q, ...recentSearches.slice(0, 4)]);
-        }
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Search failed');
+
+      const data = await response.json();
+      let searchResults = data.items || [];
+
+      if (shuffleMode) {
+        searchResults = searchResults.sort(() => Math.random() - 0.5);
       }
-    } catch (err: any) {
-      setError(err?.message || String(err));
-      setResults([]);
+
+      setResults(searchResults);
+      setRecentSearches((prev) => {
+        const filtered = prev.filter((s) => s !== query);
+        return [query, ...filtered].slice(0, 5);
+      });
+    } catch (err) {
+      setError('Failed to search. Please try again.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function getVideoId(item: Item) {
-    if (typeof item.id === "string") return item.id;
-    return (item.id as any)?.videoId || null;
-  }
+  const toggleFavorite = (video: SearchResult) => {
+    const videoId = typeof video.id === 'string' ? video.id : video.id.videoId;
+    const isFavorited = favorites.some((f) => f.videoId === videoId);
 
-  function playVideo(videoId: string, title: string = "", channel: string = "") {
-    setSelected(videoId);
-    if (!history.includes(videoId)) {
-      setHistory([videoId, ...history.slice(0, 9)]);
-    }
-  }
-
-  function toggleFavorite(item: Item) {
-    const videoId = getVideoId(item) as string;
-    const isFav = favorites.some((f) => f.videoId === videoId);
-    if (isFav) {
-      setFavorites(favorites.filter((f) => f.videoId !== videoId));
+    if (isFavorited) {
+      setFavorites((prev) => prev.filter((f) => f.videoId !== videoId));
     } else {
-      setFavorites([
-        ...favorites,
-        {
-          videoId,
-          title: item.snippet.title,
-          channel: item.snippet.channelTitle || "Unknown",
-          thumbnail: item.snippet.thumbnails?.default?.url || "",
-          addedAt: Date.now(),
-        },
-      ]);
+      const newFavorite: Favorite = {
+        videoId,
+        title: video.snippet.title,
+        channel: video.snippet.channelTitle,
+        thumbnail: video.snippet.thumbnails.medium.url,
+        addedAt: Date.now(),
+      };
+      setFavorites((prev) => [...prev, newFavorite]);
     }
-  }
+  };
 
-  function isFavorited(videoId: string | null) {
+  const isFavorited = (videoId: string) => {
     return favorites.some((f) => f.videoId === videoId);
-  }
+  };
+
+  const createPlaylist = () => {
+    if (!newPlaylistName.trim()) return;
+
+    const newPlaylist: Playlist = {
+      id: Date.now().toString(),
+      name: newPlaylistName,
+      songs: [],
+      createdAt: Date.now(),
+    };
+
+    setPlaylists((prev) => [...prev, newPlaylist]);
+    setNewPlaylistName('');
+    setShowPlaylistForm(false);
+  };
+
+  const addToPlaylist = (playlistId: string, song: Favorite) => {
+    setPlaylists((prev) =>
+      prev.map((p) => {
+        if (p.id === playlistId && !p.songs.some((s) => s.videoId === song.videoId)) {
+          return { ...p, songs: [...p.songs, song] };
+        }
+        return p;
+      })
+    );
+  };
+
+  const removeFromPlaylist = (playlistId: string, videoId: string) => {
+    setPlaylists((prev) =>
+      prev.map((p) => {
+        if (p.id === playlistId) {
+          return { ...p, songs: p.songs.filter((s) => s.videoId !== videoId) };
+        }
+        return p;
+      })
+    );
+  };
+
+  const deletePlaylist = (playlistId: string) => {
+    setPlaylists((prev) => prev.filter((p) => p.id !== playlistId));
+    setSelectedPlaylist(null);
+  };
+
+  const shuffleResults = () => {
+    setResults((prev) => [...prev].sort(() => Math.random() - 0.5));
+  };
+
+  const shuffleFavorites = () => {
+    const shuffled = [...favorites].sort(() => Math.random() - 0.5);
+    setFavorites(shuffled);
+  };
 
   if (!mounted) return null;
 
-  const bgClass = theme === "dark" ? "bg-gray-900" : "bg-gray-50";
-  const containerClass = theme === "dark" ? "bg-gray-800 text-white" : "bg-white text-gray-900";
-  const borderClass = theme === "dark" ? "border-gray-700" : "border-gray-300";
+  const theme = isDarkTheme ? 'dark bg-gray-900 text-white' : 'light bg-white text-gray-900';
+  const moodImage = moodThemes[selectedMood].image;
 
   return (
-    <div
-      className={`min-h-screen bg-cover bg-center bg-fixed p-4 sm:p-8 transition-all duration-1000`}
-      style={{
-        backgroundImage: `url('${moodThemes[mood].bgImage}')`,
-        backgroundAttachment: "fixed",
-      }}
-    >
-      {/* Overlay for better text visibility */}
-      <div className="fixed inset-0 bg-black/40 pointer-events-none transition-opacity duration-1000" />
-      <div className="max-w-7xl mx-auto relative z-10">
-        {/* Header with Theme Toggle & Mood Selector */}
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-          <div>
-            <h1 className="text-4xl sm:text-5xl font-bold mb-2 text-white drop-shadow-lg">
-              🎵 Tangy Music Player
-            </h1>
-            <p className="text-white/80 drop-shadow">
-              Search and play music directly from YouTube
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                theme === "dark"
-                  ? "bg-yellow-600 hover:bg-yellow-700 text-white"
-                  : "bg-gray-800 hover:bg-gray-900 text-white"
-              }`}
-            >
-              {theme === "dark" ? "☀️" : "🌙"}
-            </button>
-          </div>
-        </div>
+    <div className={`${theme} transition-colors duration-300 min-h-screen`}>
+      <div
+        className="fixed inset-0 z-0 bg-cover bg-center bg-fixed"
+        style={{ backgroundImage: `url(${moodImage})` }}
+      >
+        <div className={`absolute inset-0 ${isDarkTheme ? 'bg-black/40' : 'bg-white/20'}`} />
+      </div>
 
-        {/* Mood Selector */}
-        <div className="mb-8 bg-white/10 backdrop-blur-md rounded-lg p-6 border border-white/20 shadow-lg">
-          <p className="text-white font-semibold mb-4 text-lg">
-            ✨ How is your mood? Choose one to change the vibe:
-          </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {(Object.keys(moodThemes) as Mood[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMood(m)}
-                className={`px-4 py-3 rounded-lg font-semibold transition-all transform hover:scale-105 ${
-                  mood === m
-                    ? "bg-white text-gray-900 shadow-xl ring-4 ring-white/50"
-                    : "bg-white/20 text-white hover:bg-white/30 border border-white/30"
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Header */}
+        <header className={`${isDarkTheme ? 'bg-gray-900/80' : 'bg-white/80'} backdrop-blur-sm border-b ${isDarkTheme ? 'border-gray-800' : 'border-gray-200'} sticky top-0 p-4`}>
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+            <h1 className="text-3xl font-bold">🎵 YouTube Music</h1>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedMood}
+                onChange={(e) => setSelectedMood(e.target.value as Mood)}
+                className={`px-3 py-2 rounded border ${
+                  isDarkTheme
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-gray-100 border-gray-300 text-gray-900'
                 }`}
               >
-                <div className="text-2xl mb-1">{moodThemes[m].emoji}</div>
-                <div className="text-xs capitalize">{m}</div>
+                {Object.entries(moodThemes).map(([key, val]) => (
+                  <option key={key} value={key}>
+                    {val.label}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => setIsDarkTheme(!isDarkTheme)}
+                className={`px-3 py-2 rounded transition ${
+                  isDarkTheme
+                    ? 'bg-gray-800 hover:bg-gray-700'
+                    : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+              >
+                {isDarkTheme ? '☀️' : '🌙'}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 max-w-6xl mx-auto w-full p-6 space-y-6">
+          {/* Tabs */}
+          <div className="flex gap-2 flex-wrap">
+            {(['search', 'favorites', 'playlists', 'recommendations'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded font-semibold transition ${
+                  activeTab === tab
+                    ? isDarkTheme
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-400 text-white'
+                    : isDarkTheme
+                      ? 'bg-gray-800 hover:bg-gray-700'
+                      : 'bg-gray-200 hover:bg-gray-300'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)} {tab === 'favorites' && `(${favorites.length})`}
+                {tab === 'playlists' && `(${playlists.length})`}
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Search Bar */}
-        <form
-          onSubmit={doSearch}
-          className={`mb-8 flex flex-col sm:flex-row gap-2 ${containerClass} rounded-lg p-3 shadow-lg hover:shadow-xl transition-shadow border ${borderClass}`}
-        >
-          <input
-            className={`flex-1 ${theme === "dark" ? "bg-gray-700 text-white placeholder-gray-500" : "bg-gray-100 text-gray-900 placeholder-gray-400"} px-4 py-3 rounded outline-none transition-all`}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search for songs, artists, playlists..."
-          />
-          <button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-semibold transition-colors disabled:opacity-50"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "🔍 Searching..." : "🔍 Search"}
-          </button>
-        </form>
-
-        {/* Recent Searches Quick Access */}
-        {recentSearches.length > 0 && activeTab === "search" && (
-          <div className="mb-6">
-            <p className={`text-sm font-semibold mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-              Recent Searches
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {recentSearches.map((search, idx) => (
+          {/* SEARCH TAB */}
+          {activeTab === 'search' && (
+            <div className="space-y-4">
+              <div className="flex gap-2 flex-wrap items-center">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Search YouTube for music..."
+                  className={`flex-1 min-w-[200px] px-4 py-2 rounded border ${
+                    isDarkTheme
+                      ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  }`}
+                />
                 <button
-                  key={idx}
-                  onClick={() => {
-                    setQ(search);
-                    setTimeout(doSearch, 0);
-                  }}
-                  className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                    theme === "dark"
-                      ? "bg-gray-700 hover:bg-gray-600 text-white"
-                      : "bg-gray-300 hover:bg-gray-400 text-gray-900"
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    isDarkTheme
+                      ? 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700'
+                      : 'bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300'
                   }`}
                 >
-                  {search}
+                  {loading ? 'Searching...' : 'Search'}
                 </button>
-              ))}
-            </div>
-          </div>
-        )}
+                <button
+                  onClick={() => {
+                    setShuffleMode(!shuffleMode);
+                    if (results.length > 0) shuffleResults();
+                  }}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    shuffleMode
+                      ? isDarkTheme
+                        ? 'bg-green-600 hover:bg-green-700'
+                        : 'bg-green-500 hover:bg-green-600'
+                      : isDarkTheme
+                        ? 'bg-gray-700 hover:bg-gray-600'
+                        : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                >
+                  🔀 Shuffle {shuffleMode ? 'ON' : 'OFF'}
+                </button>
+              </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className={`mb-6 border px-4 py-3 rounded-lg ${
-            theme === "dark"
-              ? "bg-red-900/20 border-red-500 text-red-400"
-              : "bg-red-100 border-red-400 text-red-700"
-          }`}>
-            ❌ Error: {error}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex gap-4 mb-6 border-b border-gray-700">
-          {(["search", "favorites", "history"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 font-semibold transition-colors capitalize ${
-                activeTab === tab
-                  ? "border-b-2 border-blue-500 text-blue-400"
-                  : theme === "dark"
-                  ? "text-gray-400 hover:text-gray-300"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {tab === "search" && `🔍 Search`}
-              {tab === "favorites" && `❤️ Favorites (${favorites.length})`}
-              {tab === "history" && `📝 History (${history.length})`}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Results List */}
-          <div className="lg:col-span-2">
-            {activeTab === "search" && (
-              <>
-                {results.length === 0 && !loading && !error && (
-                  <div className={`${containerClass} rounded-lg p-8 text-center border ${borderClass}`}>
-                    <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
-                      Search for a song to get started!
-                    </p>
-                  </div>
-                )}
-                {results.length > 0 && (
-                  <div className={`${containerClass} rounded-lg overflow-hidden shadow-lg border ${borderClass}`}>
-                    <div className={`p-4 border-b ${borderClass}`}>
-                      <h2 className="text-xl font-semibold">Search Results ({results.length})</h2>
-                    </div>
-                    <ul className={`divide-y ${borderClass} max-h-[600px] overflow-y-auto`}>
-                      {results.map((it, idx) => {
-                        const vid = getVideoId(it) as string | null;
-                        const thumb = it.snippet.thumbnails?.default?.url || it.snippet.thumbnails?.high?.url || "";
-                        const isSelected = vid === selected;
-                        const isFav = isFavorited(vid);
-                        return (
-                          <li
-                            key={idx}
-                            className={`flex items-center gap-4 p-4 cursor-pointer transition-all ${
-                              isSelected
-                                ? theme === "dark"
-                                  ? "bg-blue-600/30 border-l-4 border-blue-500"
-                                  : "bg-blue-100 border-l-4 border-blue-500"
-                                : theme === "dark"
-                                ? "hover:bg-gray-700"
-                                : "hover:bg-gray-100"
-                            }`}
-                          >
-                            {thumb ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={thumb}
-                                alt="thumb"
-                                width={60}
-                                height={60}
-                                className="rounded object-cover cursor-pointer"
-                                onClick={() => vid && playVideo(vid, it.snippet.title, it.snippet.channelTitle)}
-                              />
-                            ) : (
-                              <div className={`w-16 h-16 ${theme === "dark" ? "bg-gray-700" : "bg-gray-300"} rounded`} />
-                            )}
-                            <div className="flex-1 min-w-0" onClick={() => vid && playVideo(vid, it.snippet.title, it.snippet.channelTitle)}>
-                              <div className="font-medium text-sm sm:text-base truncate">
-                                {it.snippet.title}
-                              </div>
-                              <div className={`text-xs sm:text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"} truncate`}>
-                                {it.snippet.channelTitle}
-                              </div>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFavorite(it);
-                              }}
-                              className={`text-xl transition-transform hover:scale-110 ${isFav ? "text-red-500" : "text-gray-400"}`}
-                            >
-                              {isFav ? "❤️" : "🤍"}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </>
-            )}
-
-            {activeTab === "favorites" && (
-              <div className={`${containerClass} rounded-lg overflow-hidden shadow-lg border ${borderClass}`}>
-                <div className={`p-4 border-b ${borderClass}`}>
-                  <h2 className="text-xl font-semibold">Your Favorites</h2>
-                </div>
-                {favorites.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
-                      No favorites yet. Add songs by clicking the heart icon!
-                    </p>
-                  </div>
-                ) : (
-                  <ul className={`divide-y ${borderClass} max-h-[600px] overflow-y-auto`}>
-                    {favorites.map((fav) => (
-                      <li
-                        key={fav.videoId}
-                        className={`flex items-center gap-4 p-4 cursor-pointer transition-all ${
-                          fav.videoId === selected
-                            ? theme === "dark"
-                              ? "bg-blue-600/30"
-                              : "bg-blue-100"
-                            : theme === "dark"
-                            ? "hover:bg-gray-700"
-                            : "hover:bg-gray-100"
+              {/* Recent Searches */}
+              {recentSearches.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm opacity-70">Recent Searches:</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {recentSearches.map((search) => (
+                      <button
+                        key={search}
+                        onClick={() => {
+                          setQuery(search);
+                          setTimeout(() => {
+                            setQuery(search);
+                            handleSearch();
+                          }, 0);
+                        }}
+                        className={`px-3 py-1 rounded text-sm transition ${
+                          isDarkTheme
+                            ? 'bg-gray-700 hover:bg-gray-600'
+                            : 'bg-gray-300 hover:bg-gray-400'
                         }`}
-                        onClick={() => playVideo(fav.videoId, fav.title, fav.channel)}
                       >
-                        {fav.thumbnail && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={fav.thumbnail}
-                            alt="thumb"
-                            width={60}
-                            height={60}
-                            className="rounded object-cover"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm sm:text-base truncate">{fav.title}</div>
-                          <div className={`text-xs sm:text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"} truncate`}>
-                            {fav.channel}
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFavorites(favorites.filter((f) => f.videoId !== fav.videoId));
-                          }}
-                          className="text-red-500 hover:text-red-600"
-                        >
-                          ❌
-                        </button>
-                      </li>
+                        {search}
+                      </button>
                     ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {activeTab === "history" && (
-              <div className={`${containerClass} rounded-lg overflow-hidden shadow-lg border ${borderClass}`}>
-                <div className={`p-4 border-b ${borderClass}`}>
-                  <h2 className="text-xl font-semibold">Recently Played</h2>
-                </div>
-                {history.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className={theme === "dark" ? "text-gray-400" : "text-gray-600"}>
-                      No history yet. Play a song to get started!
-                    </p>
                   </div>
-                ) : (
-                  <ul className={`divide-y ${borderClass} max-h-[600px] overflow-y-auto`}>
-                    {history.map((videoId, idx) => {
-                      const item = results.find((r) => getVideoId(r) === videoId);
-                      const fav = favorites.find((f) => f.videoId === videoId);
-                      const title = item?.snippet.title || fav?.title || "Unknown";
-                      const channel = item?.snippet.channelTitle || fav?.channel || "Unknown";
-                      const thumbnail = fav?.thumbnail || item?.snippet.thumbnails?.default?.url || "";
-
-                      return (
-                        <li
-                          key={idx}
-                          className={`flex items-center gap-4 p-4 cursor-pointer transition-all ${
-                            videoId === selected
-                              ? theme === "dark"
-                                ? "bg-blue-600/30"
-                                : "bg-blue-100"
-                              : theme === "dark"
-                              ? "hover:bg-gray-700"
-                              : "hover:bg-gray-100"
-                          }`}
-                          onClick={() => playVideo(videoId, title, channel)}
-                        >
-                          {thumbnail && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={thumbnail}
-                              alt="thumb"
-                              width={60}
-                              height={60}
-                              className="rounded object-cover"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm sm:text-base truncate">{title}</div>
-                            <div className={`text-xs sm:text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-600"} truncate`}>
-                              {channel}
-                            </div>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Player Panel */}
-          <div className="lg:col-span-1">
-            <div className={`sticky top-4 ${containerClass} rounded-lg shadow-lg p-6 border ${borderClass}`}>
-              <h2 className="text-xl font-semibold mb-4">Now Playing</h2>
-              {selected ? (
-                <div className="space-y-4">
-                  <div className="relative w-full bg-black rounded-lg overflow-hidden shadow-xl">
-                    <div className="aspect-video">
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        src={`https://www.youtube.com/embed/${selected}?autoplay=1&rel=0`}
-                        title="YouTube player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        className="rounded"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Volume Control */}
-                  <div className={`space-y-2 p-3 rounded ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`}>
-                    <label className="text-sm font-semibold">Volume: {volume}%</label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={volume}
-                      onChange={(e) => setVolume(parseInt(e.target.value))}
-                      className="w-full cursor-pointer"
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => setSelected(null)}
-                    className={`w-full ${theme === "dark" ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-300 hover:bg-gray-400"} px-4 py-2 rounded font-medium transition-colors`}
-                  >
-                    ⏹️ Stop
-                  </button>
-                </div>
-              ) : (
-                <div className={`${theme === "dark" ? "bg-gray-700" : "bg-gray-200"} rounded-lg p-8 text-center ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                  <p className="text-sm">👈 Select a song to play</p>
                 </div>
               )}
+
+              {error && <div className="text-red-500 font-semibold">{error}</div>}
+
+              {/* Results Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {results.map((video) => {
+                  const videoId = typeof video.id === 'string' ? video.id : video.id.videoId;
+                  const isFav = isFavorited(videoId);
+
+                  return (
+                    <div
+                      key={videoId}
+                      className={`rounded-lg overflow-hidden shadow-lg transition transform hover:scale-105 cursor-pointer ${
+                        isDarkTheme ? 'bg-gray-800' : 'bg-gray-100'
+                      }`}
+                    >
+                      <img
+                        src={video.snippet.thumbnails.medium.url}
+                        alt={video.snippet.title}
+                        className="w-full h-40 object-cover"
+                        onClick={() => setPlayingVideoId(videoId)}
+                      />
+                      <div className="p-3">
+                        <h3 className="font-bold text-sm line-clamp-2">{video.snippet.title}</h3>
+                        <p className="text-xs opacity-70">{video.snippet.channelTitle}</p>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() => toggleFavorite(video)}
+                            className={`flex-1 px-2 py-1 rounded text-sm font-semibold transition ${
+                              isFav
+                                ? isDarkTheme
+                                  ? 'bg-red-600 hover:bg-red-700'
+                                  : 'bg-red-500 hover:bg-red-600'
+                                : isDarkTheme
+                                  ? 'bg-gray-700 hover:bg-gray-600'
+                                  : 'bg-gray-300 hover:bg-gray-400'
+                            }`}
+                          >
+                            {isFav ? '❤️ Favorited' : '🤍 Favorite'}
+                          </button>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                addToPlaylist(e.target.value, {
+                                  videoId,
+                                  title: video.snippet.title,
+                                  channel: video.snippet.channelTitle,
+                                  thumbnail: video.snippet.thumbnails.medium.url,
+                                  addedAt: Date.now(),
+                                });
+                                e.target.value = '';
+                              }
+                            }}
+                            className={`px-2 py-1 rounded text-sm ${
+                              isDarkTheme
+                                ? 'bg-gray-700 text-white'
+                                : 'bg-gray-300 text-gray-900'
+                            }`}
+                          >
+                            <option value="">Add to PL</option>
+                            {playlists.map((pl) => (
+                              <option key={pl.id} value={pl.id}>
+                                {pl.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* FAVORITES TAB */}
+          {activeTab === 'favorites' && (
+            <div className="space-y-4">
+              {favorites.length > 0 && (
+                <button
+                  onClick={shuffleFavorites}
+                  className={`px-4 py-2 rounded font-semibold transition ${
+                    isDarkTheme
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-green-500 hover:bg-green-600'
+                  }`}
+                >
+                  🔀 Shuffle Favorites
+                </button>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {favorites.map((fav) => (
+                  <div
+                    key={fav.videoId}
+                    className={`rounded-lg overflow-hidden shadow-lg transition transform hover:scale-105 cursor-pointer ${
+                      isDarkTheme ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}
+                  >
+                    <img
+                      src={fav.thumbnail}
+                      alt={fav.title}
+                      className="w-full h-40 object-cover"
+                      onClick={() => setPlayingVideoId(fav.videoId)}
+                    />
+                    <div className="p-3">
+                      <h3 className="font-bold text-sm line-clamp-2">{fav.title}</h3>
+                      <p className="text-xs opacity-70">{fav.channel}</p>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => setPlayingVideoId(fav.videoId)}
+                          className={`flex-1 px-2 py-1 rounded text-sm font-semibold transition ${
+                            isDarkTheme
+                              ? 'bg-blue-600 hover:bg-blue-700'
+                              : 'bg-blue-500 hover:bg-blue-600'
+                          }`}
+                        >
+                          ▶️ Play
+                        </button>
+                        <button
+                          onClick={() => setFavorites((prev) => prev.filter((f) => f.videoId !== fav.videoId))}
+                          className={`flex-1 px-2 py-1 rounded text-sm font-semibold transition ${
+                            isDarkTheme
+                              ? 'bg-red-600 hover:bg-red-700'
+                              : 'bg-red-500 hover:bg-red-600'
+                          }`}
+                        >
+                          ❌ Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PLAYLISTS TAB */}
+          {activeTab === 'playlists' && (
+            <div className="space-y-4">
+              <button
+                onClick={() => setShowPlaylistForm(!showPlaylistForm)}
+                className={`px-4 py-2 rounded font-semibold transition ${
+                  isDarkTheme
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}
+              >
+                ➕ New Playlist
+              </button>
+
+              {showPlaylistForm && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                    placeholder="Playlist name..."
+                    className={`flex-1 px-3 py-2 rounded border ${
+                      isDarkTheme
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300'
+                    }`}
+                    onKeyPress={(e) => e.key === 'Enter' && createPlaylist()}
+                  />
+                  <button
+                    onClick={createPlaylist}
+                    className={`px-4 py-2 rounded font-semibold ${
+                      isDarkTheme ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'
+                    }`}
+                  >
+                    Create
+                  </button>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {playlists.map((playlist) => (
+                  <div
+                    key={playlist.id}
+                    className={`rounded-lg p-4 border ${
+                      isDarkTheme ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-bold">{playlist.name}</h3>
+                        <p className="text-sm opacity-70">{playlist.songs.length} songs</p>
+                      </div>
+                      <button
+                        onClick={() => deletePlaylist(playlist.id)}
+                        className="px-3 py-1 rounded text-sm font-semibold bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+
+                    {playlist.songs.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {playlist.songs.map((song) => (
+                          <div
+                            key={song.videoId}
+                            className={`rounded p-2 ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'}`}
+                          >
+                            <p className="font-semibold text-sm line-clamp-2">{song.title}</p>
+                            <button
+                              onClick={() => removeFromPlaylist(playlist.id, song.videoId)}
+                              className="text-xs mt-2 text-red-500 hover:text-red-600"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* RECOMMENDATIONS TAB */}
+          {activeTab === 'recommendations' && (
+            <div className="space-y-4">
+              <div className={`rounded-lg p-4 ${isDarkTheme ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                <p className="text-sm opacity-70">
+                  {recommendations.length > 0
+                    ? `Based on your ${selectedMood} mood and favorites:`
+                    : 'Add favorites to get personalized recommendations'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {recommendations.map((rec) => (
+                  <div
+                    key={rec.videoId}
+                    className={`rounded-lg overflow-hidden shadow-lg transition transform hover:scale-105 cursor-pointer ${
+                      isDarkTheme ? 'bg-gray-800' : 'bg-gray-100'
+                    }`}
+                  >
+                    <img
+                      src={rec.thumbnail}
+                      alt={rec.title}
+                      className="w-full h-40 object-cover"
+                      onClick={() => setPlayingVideoId(rec.videoId)}
+                    />
+                    <div className="p-3">
+                      <h3 className="font-bold text-sm line-clamp-2">{rec.title}</h3>
+                      <p className="text-xs opacity-70">{rec.channel}</p>
+                      <button
+                        onClick={() => setPlayingVideoId(rec.videoId)}
+                        className={`w-full mt-2 px-2 py-1 rounded text-sm font-semibold transition ${
+                          isDarkTheme
+                            ? 'bg-blue-600 hover:bg-blue-700'
+                            : 'bg-blue-500 hover:bg-blue-600'
+                        }`}
+                      >
+                        ▶️ Play
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* Player */}
+        {playingVideoId && (
+          <div className={`fixed bottom-0 left-0 right-0 ${isDarkTheme ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-sm border-t ${isDarkTheme ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className="max-w-6xl mx-auto p-4 flex items-center justify-between gap-4">
+              <iframe
+                width="100%"
+                height="60"
+                src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1`}
+                frameBorder="0"
+                allow="autoplay"
+                className="rounded"
+              />
+              <button
+                onClick={() => setPlayingVideoId(null)}
+                className="px-3 py-2 rounded bg-red-600 hover:bg-red-700 font-semibold whitespace-nowrap"
+              >
+                Close
+              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
